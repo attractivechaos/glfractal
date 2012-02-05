@@ -1,5 +1,7 @@
-/*
-	gcc -Wall -O2 glfractal.c -framework GLUT -framework OpenGL -Wall -o glfractal
+/* MIT license; Copyright (c) 2012 by Attractive Chaos <attractor@live.co.uk>
+
+	gcc -Wall -O2 glfractal.c -o glfractal -framework GLUT -framework OpenGL  # Mac OS X
+	gcc -Wall -O2 glfractal.c -o glfractal -lglut -lGL -lGLU -lX11 -lm        # Linux (not tried)
 */
 
 #include <unistd.h>
@@ -17,7 +19,7 @@ static struct {
 	int width, height, max_iter, ns, np;
 	double xmin, xmax, ymin, ymax;
 	unsigned char *buf;
-} g_data = { 800, 600, 256, 1, 1, -2, 1.2, -1.2, 1.2, NULL };
+} g_data = { 800, 600, 256, 1, 1, -2, 1.2, -1.2, 1.2, NULL }; /* NB: 800/600=(1.2+2)/(1.2+1.2)=4/3; keep this ratio! */
 
 typedef struct {
 	unsigned char r, g, b;
@@ -128,16 +130,11 @@ static void cb_key(unsigned char key, int x, int y)
 			fclose(fp);
 			fprintf(stderr, "(MM) Save screenshot to file '%s'.\n", fn);
 		}
-	}
-}
-
-static void cb_special(int key, int x, int y)
-{
-	if (key == GLUT_KEY_RIGHT) {
+	} else if (key == '>' || key == '.') {
 		g_data.max_iter += 256;
 		cb_draw();
 		fprintf(stderr, "(MM) Max iteration: %d\n", g_data.max_iter);
-	} else if (key == GLUT_KEY_LEFT) {
+	} else if (key == '<' || key == ',') {
 		if (g_data.max_iter >= 512) g_data.max_iter -= 256;
 		cb_draw();
 		fprintf(stderr, "(MM) Max iteration: %d\n", g_data.max_iter);
@@ -149,8 +146,8 @@ static void cb_mouse(int bn, int state, int x, int y)
 	if (state == 1 && (bn == 0 || bn == 2)) { /* release of the left/right button */
 		double xc = g_data.xmin + (g_data.xmax - g_data.xmin) * x / g_data.width;
 		double yc = g_data.ymin + (g_data.ymax - g_data.ymin) * (g_data.height - y) / g_data.height;
-		double xstep = (g_data.xmax - g_data.xmin) * (bn == 0? .25 : 1.414);
-		double ystep = (g_data.ymax - g_data.ymin) * (bn == 0? .25 : 1.414);
+		double xstep = (g_data.xmax - g_data.xmin) * (bn == 0? .5 : 2.) * .5;
+		double ystep = (g_data.ymax - g_data.ymin) * (bn == 0? .5 : 2.) * .5;
 		g_data.xmin = xc - xstep, g_data.xmax = xc + xstep;
 		g_data.ymin = yc - ystep, g_data.ymax = yc + ystep;
 		cb_draw();
@@ -165,15 +162,16 @@ int main(int argc, char *argv[])
 {
 	/* parse command-line options */
 	int c, is_full = 0;
+	double yran, yc;
 	fprintf(stderr, "\nKey bindings:\n\n");
 	fprintf(stderr, "    LeftClick       zoom in by 2X\n");
 	fprintf(stderr, "    RightClick      zoom out by 2X\n");
-	fprintf(stderr, "    LEFT            decrease max iteration by 256\n");
-	fprintf(stderr, "    RIGHT           increase max iteration by 256\n");
-	fprintf(stderr, "    Number          change max iteration to i*256\n");
-	fprintf(stderr, "    s/S             save status\n");
-	fprintf(stderr, "    p/P             save screenshot\n");
-	fprintf(stderr, "    ESCAPE/q/Q      exit\n\n");
+	fprintf(stderr, "    < or ,          decrease max iteration by 256\n");
+	fprintf(stderr, "    > or .          increase max iteration by 256\n");
+	fprintf(stderr, "    NUMBER          change max iteration to i*256\n");
+	fprintf(stderr, "    s or S          save status\n");
+	fprintf(stderr, "    p or P          save screenshot\n");
+	fprintf(stderr, "    ESC or q or Q   exit\n\n");
 	fprintf(stderr, "Command line options:\n\n");
 	fprintf(stderr, "    -i FILE         data file dumped by 's' or 'S' [null]\n");
 	fprintf(stderr, "    -w INT          image width in pixel            [800]\n");
@@ -201,13 +199,18 @@ int main(int argc, char *argv[])
 						fprintf(stderr, "(EE) Invalid palette at line %d\n", i + 1);
 						return 1;
 					}
-					g_palette[i].r = tmp[0]; g_palette[i].g = tmp[1]; g_palette[i].r = tmp[2];
+					g_palette[i].r = tmp[0]; g_palette[i].g = tmp[1]; g_palette[i].b = tmp[2];
 				}
 				fclose(fp);
 			} else fprintf(stderr, "(WW) Fail to read map file '%s'. Continue anyway.\n", optarg);
 		}
 	}
 	g_data.buf = malloc(3 * g_data.width * g_data.height);
+
+	/* Scale the Y axis to keep the right ratio */
+	yran = (g_data.xmax - g_data.xmin) * g_data.height / g_data.width;
+	yc = .5 * (g_data.ymax + g_data.ymin);
+	g_data.ymax = yc + .5 * yran; g_data.ymin = yc - .5 * yran;
 
 	/* Initialize OpenGL */
 	glutInit(&argc, argv);
@@ -221,7 +224,6 @@ int main(int argc, char *argv[])
 	} else glutCreateWindow("Mandelbrot Viewer");
 
 	glutDisplayFunc(cb_draw);
-	glutSpecialFunc(cb_special);
 	glutKeyboardFunc(cb_key);
 	glutMouseFunc(cb_mouse);
 	glDisable(GL_DEPTH_TEST);
