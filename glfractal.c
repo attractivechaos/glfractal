@@ -44,9 +44,9 @@ void glf_mbrot_simple(unsigned char *buf, int max_iter, int w, int h, double xmi
 	double w1, h1, x0, y0;
 	rgbcolor_t *p = (rgbcolor_t*)buf;
 	w1 = 1. / w; h1 = 1. / h;
-	for (j = 0, y0 = ymin; j < h; ++j) {
+	for (j = 0; j < h; ++j) {
 		y0 = ymin + (ymax - ymin) * j * h1;
-		for (i = 0, x0 = xmin; i < w; ++i) {
+		for (i = 0; i < w; ++i) {
 			double x = x0 = xmin + (xmax - xmin) * i * w1, y = y0;
 			for (k = 0; k < max_iter; ++k) {
 				double z = x * y;
