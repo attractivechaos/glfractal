@@ -86,6 +86,15 @@ void glf_mbrot_simple(unsigned char *buf, int max_iter, int w, int h, float xmin
  * GLUT related functions *
  **************************/
 
+static void cb_draw(void)
+{
+	glClearColor(0.0, 0.0, 0.0, 1.0);
+	glClear(GL_COLOR_BUFFER_BIT);
+	glf_mbrot_simple(g_data.buf, g_data.max_iter, g_data.width, g_data.height, g_data.xmin, g_data.xmax, g_data.ymin, g_data.ymax, g_palette);
+	glDrawPixels(g_data.width, g_data.height, GL_RGB, GL_UNSIGNED_BYTE, g_data.buf);
+	glutSwapBuffers();
+}
+
 static void cb_key(unsigned char key, int x, int y)
 {
 	if (key == 27 || key == 'q' || key == 'Q') {
@@ -94,13 +103,18 @@ static void cb_key(unsigned char key, int x, int y)
 	}
 }
 
-static void cb_draw(void)
+static void cb_mouse(int bn, int state, int x, int y)
 {
-	glClearColor(0.0, 0.0, 0.0, 1.0);
-	glClear(GL_COLOR_BUFFER_BIT);
-	glf_mbrot_simple(g_data.buf, g_data.max_iter, g_data.width, g_data.height, g_data.xmin, g_data.xmax, g_data.ymin, g_data.ymax, g_palette);
-	glDrawPixels(g_data.width, g_data.height, GL_RGB, GL_UNSIGNED_BYTE, g_data.buf);
-	glutSwapBuffers();
+	if (state == 1 && bn == 0) { /* release of the left button */
+		float xc = g_data.xmin + (g_data.xmax - g_data.xmin) * x / g_data.width;
+		float yc = g_data.ymin + (g_data.ymax - g_data.ymin) * (g_data.height - y) / g_data.height;
+		float xstep = (g_data.xmax - g_data.xmin) * .25;
+		float ystep = (g_data.ymax - g_data.ymin) * .25;
+		g_data.xmin = xc - xstep, g_data.xmax = xc + xstep;
+		g_data.ymin = yc - ystep, g_data.ymax = yc + ystep;
+		cb_draw();
+		fprintf(stderr, "Window: (%g,%g;%g,%g)\n", g_data.xmin, g_data.xmax, g_data.ymin, g_data.ymax);
+	}
 }
 
 /*****************
@@ -125,6 +139,8 @@ int main(int argc, char *argv[])
 
 	glutDisplayFunc(cb_draw);
 	glutKeyboardFunc(cb_key);
+	glutMouseFunc(cb_mouse);
+	glDisable(GL_DEPTH_TEST);
 	
 	glutMainLoop();
 	return 0;
