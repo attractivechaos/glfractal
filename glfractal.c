@@ -1,7 +1,13 @@
 /* MIT license; Copyright (c) 2012 by Attractive Chaos <attractor@live.co.uk>
 
-	gcc -Wall -O2 glfractal.c -o glfractal -framework GLUT -framework OpenGL  # Mac OS X
-	gcc -Wall -O2 glfractal.c -o glfractal -lglut -lGL -lGLU -lX11 -lm        # Linux (not tried)
+	 gcc -Wall -O2 glfractal.c -o glfractal -framework GLUT -framework OpenGL  # Mac OS X
+	 gcc -Wall -O2 glfractal.c -o glfractal -lglut -lGL -lGLU -lX11 -lm        # Linux (not tried)
+
+   With reference to:
+
+     http://www.postulate.org/attractor/attractor.zip         (a good one, but dead unfortunately)
+	 http://nuclear.mutantstargoat.com/articles/sdr_fract/
+     http://rosettacode.org/wiki/Mandelbrot_set#C
 */
 
 #include <unistd.h>
