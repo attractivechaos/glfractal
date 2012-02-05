@@ -14,7 +14,7 @@
 
 static struct {
 	int width, height, max_iter;
-	float xmin, xmax, ymin, ymax;
+	double xmin, xmax, ymin, ymax;
 	unsigned char *buf;
 } g_data = { 800, 600, 255, -2, 1, -1.2, 1.2, NULL };
 
@@ -62,18 +62,18 @@ const rgbcolor_t g_palette[256] = {
  * Mandelbrot plane *
  ********************/
 
-void glf_mbrot_simple(unsigned char *buf, int max_iter, int w, int h, float xmin, float xmax, float ymin, float ymax, const rgbcolor_t palette[256])
+void glf_mbrot_simple(unsigned char *buf, int max_iter, int w, int h, double xmin, double xmax, double ymin, double ymax, const rgbcolor_t palette[256])
 {
 	int i, j, k;
-	float w1, h1, x0, y0;
+	double w1, h1, x0, y0;
 	rgbcolor_t *p = (rgbcolor_t*)buf;
 	w1 = 1. / w; h1 = 1. / h;
 	for (j = 0, y0 = ymin; j < h; ++j) {
 		y0 = ymin + (ymax - ymin) * j * h1;
 		for (i = 0, x0 = xmin; i < w; ++i) {
-			float x = x0 = xmin + (xmax - xmin) * i * w1, y = y0;
+			double x = x0 = xmin + (xmax - xmin) * i * w1, y = y0;
 			for (k = 0; k < max_iter; ++k) {
-				float x2 = x * x, y2 = y * y;
+				double x2 = x * x, y2 = y * y;
 				if (x2 + y2 >= 4) break;
 				y = 2 * x * y + y0;
 				x = x2 - y2 + x0;
@@ -106,10 +106,10 @@ static void cb_key(unsigned char key, int x, int y)
 static void cb_mouse(int bn, int state, int x, int y)
 {
 	if (state == 1 && bn == 0) { /* release of the left button */
-		float xc = g_data.xmin + (g_data.xmax - g_data.xmin) * x / g_data.width;
-		float yc = g_data.ymin + (g_data.ymax - g_data.ymin) * (g_data.height - y) / g_data.height;
-		float xstep = (g_data.xmax - g_data.xmin) * .25;
-		float ystep = (g_data.ymax - g_data.ymin) * .25;
+		double xc = g_data.xmin + (g_data.xmax - g_data.xmin) * x / g_data.width;
+		double yc = g_data.ymin + (g_data.ymax - g_data.ymin) * (g_data.height - y) / g_data.height;
+		double xstep = (g_data.xmax - g_data.xmin) * .25;
+		double ystep = (g_data.ymax - g_data.ymin) * .25;
 		g_data.xmin = xc - xstep, g_data.xmax = xc + xstep;
 		g_data.ymin = yc - ystep, g_data.ymax = yc + ystep;
 		cb_draw();
