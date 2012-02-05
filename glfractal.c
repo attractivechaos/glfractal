@@ -180,8 +180,9 @@ int main(int argc, char *argv[])
 	fprintf(stderr, "    ESC or q or Q   exit\n\n");
 	fprintf(stderr, "Command line options:\n\n");
 	fprintf(stderr, "    -i FILE         data file dumped by 's' or 'S' [null]\n");
-	fprintf(stderr, "    -w INT          image width in pixel            [800]\n");
-	fprintf(stderr, "    -h INT          image height in pixel           [600]\n");
+	fprintf(stderr, "    -m FILE         palette file                   [null]\n");
+	fprintf(stderr, "    -w INT          image width in pixel           [800]\n");
+	fprintf(stderr, "    -h INT          image height in pixel          [600]\n");
 	fprintf(stderr, "    -f              full screen mode\n\n");
 	while ((c = getopt(argc, argv, "fw:h:i:m:")) >= 0) {
 		if (c == 'w') g_data.width  = (atoi(optarg) + 3) / 4 * 4;
