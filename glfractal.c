@@ -13,11 +13,17 @@
 #endif
 
 static struct {
-	int width, height;
+	int width, height, max_iter;
+	float xmin, xmax, ymin, ymax;
 	unsigned char *buf;
-} g_data = { 800, 600, NULL };
+} g_data = { 800, 600, 255, -1, 1, -1, 1, NULL };
 
-const unsigned char g_palette[256][3] = {
+typedef struct {
+	unsigned char r, g, b;
+} rgbcolor_t;
+
+/* Palette: blues.map from FractInt */
+const rgbcolor_t g_palette[256] = {
 	{  0,  0,  0},{  0,  0,  0},{  0,  0,  4},{  0,  0, 12},{  0,  0, 16},{  0,  0, 24},{  0,  0, 32},{  0,  0, 36},
 	{  0,  0, 44},{  0,  0, 48},{  0,  0, 56},{  0,  0, 64},{  0,  0, 68},{  0,  0, 76},{  0,  0, 80},{  0,  0, 88},
 	{  0,  0, 96},{  0,  0,100},{  0,  0,108},{  0,  0,116},{  0,  0,120},{  0,  0,128},{  0,  0,132},{  0,  0,140},
@@ -52,13 +58,38 @@ const unsigned char g_palette[256][3] = {
 	{  0,  0, 28},{  0,  0, 24},{  0,  0, 20},{  0,  0, 16},{  0,  0, 12},{  0,  0,  8},{  0,  0,  0},{  0,  0,  0}
 };
 
-/*****************
- * GLUT callback *
- *****************/
+/********************
+ * Mandelbrot plane *
+ ********************/
+
+void glf_mbrot_simple(unsigned char *buf, int max_iter, int w, int h, float xmin, float xmax, float ymin, float ymax, const rgbcolor_t palette[256])
+{
+	int i, j, k;
+	float xstep, ystep, x0, y0;
+	rgbcolor_t *p = (rgbcolor_t*)buf;
+	xstep = (xmax - xmin) / w;
+	ystep = (ymax - ymin) / h;
+	for (j = 0, y0 = ymin; j < h; ++j, y0 += ystep) {
+		for (i = 0, x0 = xmin; i < w; ++i, x0 += xstep) {
+			float x = x0, y = x0;
+			for (k = 1; k < max_iter; ++k) {
+				float xtmp = x * x - y * y + x0;
+				y = 2 * x * y + y0;
+				x = xtmp;
+				if (x * x + y * y >= 4) break;
+			}
+			*p++ = palette[k&0xff];
+		}
+	}
+}
+
+/**************************
+ * GLUT related functions *
+ **************************/
 
 static void cb_key(unsigned char key, int x, int y)
 {
-	if (key == 27) {
+	if (key == 27 || key == 'q' || key == 'Q') {
 		free(g_data.buf);
 		exit(0);
 	}
@@ -68,6 +99,9 @@ static void cb_draw(void)
 {
 	glClearColor(0.0, 0.0, 0.0, 1.0);
 	glClear(GL_COLOR_BUFFER_BIT);
+	glf_mbrot_simple(g_data.buf, g_data.max_iter, g_data.width, g_data.height, g_data.xmin, g_data.xmax, g_data.ymin, g_data.ymax, g_palette);
+	glDrawPixels(g_data.width, g_data.height, GL_RGB, GL_UNSIGNED_BYTE, g_data.buf);
+	glutSwapBuffers();
 }
 
 /*****************
@@ -76,13 +110,13 @@ static void cb_draw(void)
 
 int main(int argc, char *argv[])
 {
-	int c;
-
 	/* parse command-line options */
+	int c;
 	while ((c = getopt(argc, argv, "w:h:")) >= 0) {
 		if (c == 'w') g_data.width  = (atoi(optarg) + 3) / 4 * 4;
 		else if (c == 'h') g_data.height = (atoi(optarg) + 3) / 4 * 4;
 	}
+	g_data.buf = calloc(1, 3 * g_data.width * g_data.height);
 
 	/* Initialize OpenGL */
 	glutInit(&argc, argv);
