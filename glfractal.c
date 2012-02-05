@@ -65,13 +65,13 @@ const rgbcolor_t g_palette[256] = {
 void glf_mbrot_simple(unsigned char *buf, int max_iter, int w, int h, float xmin, float xmax, float ymin, float ymax, const rgbcolor_t palette[256])
 {
 	int i, j, k;
-	float xstep, ystep, x0, y0;
+	float w1, h1, x0, y0;
 	rgbcolor_t *p = (rgbcolor_t*)buf;
-	xstep = (xmax - xmin) / w;
-	ystep = (ymax - ymin) / h;
-	for (j = 0, y0 = ymin; j < h; ++j, y0 += ystep) {
-		for (i = 0, x0 = xmin; i < w; ++i, x0 += xstep) {
-			float x = x0, y = y0;
+	w1 = 1. / w; h1 = 1. / h;
+	for (j = 0, y0 = ymin; j < h; ++j) {
+		y0 = ymin + (ymax - ymin) * j * h1;
+		for (i = 0, x0 = xmin; i < w; ++i) {
+			float x = x0 = xmin + (xmax - xmin) * i * w1, y = y0;
 			for (k = 0; k < max_iter; ++k) {
 				float x2 = x * x, y2 = y * y;
 				if (x2 + y2 >= 4) break;
