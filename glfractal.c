@@ -149,7 +149,7 @@ static void cb_key(unsigned char key, int x, int y)
 
 static void cb_mouse(int bn, int state, int x, int y)
 {
-	if (state == 1 && (bn == 0 || bn == 2)) { /* release of the left/right button */
+	if (state == GLUT_UP && (bn == GLUT_LEFT_BUTTON || bn == GLUT_RIGHT_BUTTON)) {
 		double xc = g_data.xmin + (g_data.xmax - g_data.xmin) * x / g_data.width;
 		double yc = g_data.ymin + (g_data.ymax - g_data.ymin) * (g_data.height - y) / g_data.height;
 		double xstep = (g_data.xmax - g_data.xmin) * (bn == 0? .5 : 2.) * .5;
