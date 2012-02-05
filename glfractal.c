@@ -14,7 +14,7 @@
 #endif
 
 static struct {
-	int width, height, max_iter, ns, nd;
+	int width, height, max_iter, ns, np;
 	double xmin, xmax, ymin, ymax;
 	unsigned char *buf;
 } g_data = { 800, 600, 256, 1, 1, -2, 1, -1.2, 1.2, NULL };
@@ -90,7 +90,6 @@ void glf_mbrot_simple(unsigned char *buf, int max_iter, int w, int h, double xmi
 
 static void cb_draw(void)
 {
-	glClearColor(0.0, 0.0, 0.0, 1.0);
 	glClear(GL_COLOR_BUFFER_BIT);
 	glf_mbrot_simple(g_data.buf, g_data.max_iter, g_data.width, g_data.height, g_data.xmin, g_data.xmax, g_data.ymin, g_data.ymax, g_palette);
 	glDrawPixels(g_data.width, g_data.height, GL_RGB, GL_UNSIGNED_BYTE, g_data.buf);
@@ -108,9 +107,9 @@ static void cb_key(unsigned char key, int x, int y)
 		fprintf(stderr, "Max iteration: %d\n", g_data.max_iter);
 		cb_draw();
 	} else if (key == 's' || key == 'S') {
-		char fn[16];
+		char fn[32];
 		FILE *fp;
-		sprintf(fn, "data%.3d.dat", g_data.ns++);
+		sprintf(fn, "data%.3d.dat", g_data.ns++); /* FIXME: possible memory violation */
 		if ((fp = fopen(fn, "wb")) != NULL) {
 			double f[4];
 			f[0] = g_data.xmin; f[1] = g_data.xmax; f[2] = g_data.ymin; f[3] = g_data.ymax;
@@ -118,6 +117,16 @@ static void cb_key(unsigned char key, int x, int y)
 			fwrite(f, sizeof(double), 4, fp);
 			fclose(fp);
 			fprintf(stderr, "Save data to file '%s'.\n", fn);
+		}
+	} else if (key == 'p' || key == 'P') {
+		char fn[32];
+		FILE *fp;
+		sprintf(fn, "screen%.3d.ppm", g_data.np++);
+		if ((fp = fopen(fn, "wb")) != NULL) {
+			fprintf(fp, "P6\n%d %d\n255\n", g_data.width, g_data.height);
+			fwrite(g_data.buf, 1, 3 * g_data.width * g_data.height, fp);
+			fclose(fp);
+			fprintf(stderr, "Save screenshot to file '%s'.\n", fn);
 		}
 	}
 }
@@ -162,7 +171,13 @@ int main(int argc, char *argv[])
 	fprintf(stderr, "    LEFT            decrease max iteration by 256\n");
 	fprintf(stderr, "    RIGHT           increase max iteration by 256\n");
 	fprintf(stderr, "    Number          change max iteration to i*256\n");
-	fprintf(stderr, "    ESCAPE/q/Q      exit\n");
+	fprintf(stderr, "    s/S             save status\n");
+	fprintf(stderr, "    p/P             save screenshot\n");
+	fprintf(stderr, "    ESCAPE/q/Q      exit\n\n");
+	fprintf(stderr, "Command line options:\n\n");
+	fprintf(stderr, "    -i FILE         data file dumped by 's' or 'S' [null]\n");
+	fprintf(stderr, "    -w INT          image width in pixel            [800]\n");
+	fprintf(stderr, "    -h INT          image height in pixel           [600]\n");
 	fprintf(stderr, "\n");
 	while ((c = getopt(argc, argv, "w:h:i:")) >= 0) {
 		if (c == 'w') g_data.width  = (atoi(optarg) + 3) / 4 * 4;
@@ -178,11 +193,11 @@ int main(int argc, char *argv[])
 			}
 		}
 	}
-	g_data.buf = calloc(1, 3 * g_data.width * g_data.height);
+	g_data.buf = malloc(3 * g_data.width * g_data.height);
 
 	/* Initialize OpenGL */
 	glutInit(&argc, argv);
-	glutInitDisplayMode(GLUT_RGB | GLUT_DOUBLE);
+	glutInitDisplayMode(GLUT_RGB);
 	glutInitWindowSize(g_data.width, g_data.height);
 	glutCreateWindow("Mandelbrot Viewer");
 
