@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <ctype.h>
 
 #ifdef __APPLE__
 #include <GLUT/glut.h>
@@ -13,10 +14,10 @@
 #endif
 
 static struct {
-	int width, height, max_iter;
+	int width, height, max_iter, tmp_iter;
 	double xmin, xmax, ymin, ymax;
 	unsigned char *buf;
-} g_data = { 800, 600, 255, -2, 1, -1.2, 1.2, NULL };
+} g_data = { 800, 600, 256, 0, -2, 1, -1.2, 1.2, NULL };
 
 typedef struct {
 	unsigned char r, g, b;
@@ -100,16 +101,37 @@ static void cb_key(unsigned char key, int x, int y)
 	if (key == 27 || key == 'q' || key == 'Q') {
 		free(g_data.buf);
 		exit(0);
+	} else if (isdigit(key)) {
+		if (g_data.tmp_iter < 100)
+			g_data.tmp_iter = g_data.tmp_iter * 10 + (key - '0');
+	} else if (key == 13) {
+		g_data.max_iter = g_data.tmp_iter * 256;
+		g_data.tmp_iter = 0;
+		fprintf(stderr, "Max iteration: %d\n", g_data.max_iter);
+		cb_draw();
+	}
+}
+
+static void cb_special(int key, int x, int y)
+{
+	if (key == GLUT_KEY_RIGHT) {
+		g_data.max_iter += 256;
+		cb_draw();
+		fprintf(stderr, "Max iteration: %d\n", g_data.max_iter);
+	} else if (key == GLUT_KEY_LEFT) {
+		if (g_data.max_iter >= 512) g_data.max_iter -= 256;
+		cb_draw();
+		fprintf(stderr, "Max iteration: %d\n", g_data.max_iter);
 	}
 }
 
 static void cb_mouse(int bn, int state, int x, int y)
 {
-	if (state == 1 && bn == 0) { /* release of the left button */
+	if (state == 1 && (bn == 0 || bn == 2)) { /* release of the left/right button */
 		double xc = g_data.xmin + (g_data.xmax - g_data.xmin) * x / g_data.width;
 		double yc = g_data.ymin + (g_data.ymax - g_data.ymin) * (g_data.height - y) / g_data.height;
-		double xstep = (g_data.xmax - g_data.xmin) * .25;
-		double ystep = (g_data.ymax - g_data.ymin) * .25;
+		double xstep = (g_data.xmax - g_data.xmin) * (bn == 0? .25 : 4.);
+		double ystep = (g_data.ymax - g_data.ymin) * (bn == 0? .25 : 4.);
 		g_data.xmin = xc - xstep, g_data.xmax = xc + xstep;
 		g_data.ymin = yc - ystep, g_data.ymax = yc + ystep;
 		cb_draw();
@@ -125,6 +147,14 @@ int main(int argc, char *argv[])
 {
 	/* parse command-line options */
 	int c;
+	fprintf(stderr, "\nKey bindings:\n\n");
+	fprintf(stderr, "    LeftClick       zoom in by 2X\n");
+	fprintf(stderr, "    RightClick      zoom out by 2X\n");
+	fprintf(stderr, "    LEFT            decrease max iteration by 256\n");
+	fprintf(stderr, "    RIGHT           increase max iteration by 256\n");
+	fprintf(stderr, "    Number+Return   change max iteration to i*256\n");
+	fprintf(stderr, "    ESCAPE/q/Q      exit\n");
+	fprintf(stderr, "\n");
 	while ((c = getopt(argc, argv, "w:h:")) >= 0) {
 		if (c == 'w') g_data.width  = (atoi(optarg) + 3) / 4 * 4;
 		else if (c == 'h') g_data.height = (atoi(optarg) + 3) / 4 * 4;
@@ -138,6 +168,7 @@ int main(int argc, char *argv[])
 	glutCreateWindow("Mandelbrot Viewer");
 
 	glutDisplayFunc(cb_draw);
+	glutSpecialFunc(cb_special);
 	glutKeyboardFunc(cb_key);
 	glutMouseFunc(cb_mouse);
 	glDisable(GL_DEPTH_TEST);
