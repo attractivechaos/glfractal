@@ -16,7 +16,7 @@ static struct {
 	int width, height, max_iter;
 	float xmin, xmax, ymin, ymax;
 	unsigned char *buf;
-} g_data = { 800, 600, 255, -1, 1, -1, 1, NULL };
+} g_data = { 800, 600, 255, -2, 1, -1.2, 1.2, NULL };
 
 typedef struct {
 	unsigned char r, g, b;
@@ -71,18 +71,17 @@ void glf_mbrot_simple(unsigned char *buf, int max_iter, int w, int h, float xmin
 	ystep = (ymax - ymin) / h;
 	for (j = 0, y0 = ymin; j < h; ++j, y0 += ystep) {
 		for (i = 0, x0 = xmin; i < w; ++i, x0 += xstep) {
-			float x = x0, y = x0;
-			for (k = 1; k < max_iter; ++k) {
-				float xtmp = x * x - y * y + x0;
+			float x = x0, y = y0;
+			for (k = 0; k < max_iter; ++k) {
+				float x2 = x * x, y2 = y * y;
+				if (x2 + y2 >= 4) break;
 				y = 2 * x * y + y0;
-				x = xtmp;
-				if (x * x + y * y >= 4) break;
+				x = x2 - y2 + x0;
 			}
 			*p++ = palette[k&0xff];
 		}
 	}
 }
-
 /**************************
  * GLUT related functions *
  **************************/
