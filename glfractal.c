@@ -14,10 +14,10 @@
 #endif
 
 static struct {
-	int width, height, max_iter, tmp_iter;
+	int width, height, max_iter, ns, nd;
 	double xmin, xmax, ymin, ymax;
 	unsigned char *buf;
-} g_data = { 800, 600, 256, 0, -2, 1, -1.2, 1.2, NULL };
+} g_data = { 800, 600, 256, 1, 1, -2, 1, -1.2, 1.2, NULL };
 
 typedef struct {
 	unsigned char r, g, b;
@@ -74,10 +74,11 @@ void glf_mbrot_simple(unsigned char *buf, int max_iter, int w, int h, double xmi
 		for (i = 0, x0 = xmin; i < w; ++i) {
 			double x = x0 = xmin + (xmax - xmin) * i * w1, y = y0;
 			for (k = 0; k < max_iter; ++k) {
-				double x2 = x * x, y2 = y * y;
-				if (x2 + y2 >= 4) break;
-				y = 2 * x * y + y0;
-				x = x2 - y2 + x0;
+				double z = x * y;
+				x *= x; y *= y;
+				if (x + y >= 4) break;
+				x = x - y + x0;
+				y = z + z + y0; 
 			}
 			*p++ = palette[k&0xff];
 		}
@@ -102,13 +103,22 @@ static void cb_key(unsigned char key, int x, int y)
 		free(g_data.buf);
 		exit(0);
 	} else if (isdigit(key)) {
-		if (g_data.tmp_iter < 100)
-			g_data.tmp_iter = g_data.tmp_iter * 10 + (key - '0');
-	} else if (key == 13) {
-		g_data.max_iter = g_data.tmp_iter * 256;
-		g_data.tmp_iter = 0;
+		if (key == '0') key = 10 + '0';
+		g_data.max_iter = (int)(key - '0') << 8;
 		fprintf(stderr, "Max iteration: %d\n", g_data.max_iter);
 		cb_draw();
+	} else if (key == 's' || key == 'S') {
+		char fn[16];
+		FILE *fp;
+		sprintf(fn, "data%.3d.dat", g_data.ns++);
+		if ((fp = fopen(fn, "wb")) != NULL) {
+			double f[4];
+			f[0] = g_data.xmin; f[1] = g_data.xmax; f[2] = g_data.ymin; f[3] = g_data.ymax;
+			fwrite(&g_data.max_iter, sizeof(int), 1, fp);
+			fwrite(f, sizeof(double), 4, fp);
+			fclose(fp);
+			fprintf(stderr, "Save data to file '%s'.\n", fn);
+		}
 	}
 }
 
@@ -130,12 +140,11 @@ static void cb_mouse(int bn, int state, int x, int y)
 	if (state == 1 && (bn == 0 || bn == 2)) { /* release of the left/right button */
 		double xc = g_data.xmin + (g_data.xmax - g_data.xmin) * x / g_data.width;
 		double yc = g_data.ymin + (g_data.ymax - g_data.ymin) * (g_data.height - y) / g_data.height;
-		double xstep = (g_data.xmax - g_data.xmin) * (bn == 0? .25 : 4.);
-		double ystep = (g_data.ymax - g_data.ymin) * (bn == 0? .25 : 4.);
+		double xstep = (g_data.xmax - g_data.xmin) * (bn == 0? .25 : 1.414);
+		double ystep = (g_data.ymax - g_data.ymin) * (bn == 0? .25 : 1.414);
 		g_data.xmin = xc - xstep, g_data.xmax = xc + xstep;
 		g_data.ymin = yc - ystep, g_data.ymax = yc + ystep;
 		cb_draw();
-		fprintf(stderr, "Window: (%g,%g;%g,%g)\n", g_data.xmin, g_data.xmax, g_data.ymin, g_data.ymax);
 	}
 }
 
@@ -152,12 +161,22 @@ int main(int argc, char *argv[])
 	fprintf(stderr, "    RightClick      zoom out by 2X\n");
 	fprintf(stderr, "    LEFT            decrease max iteration by 256\n");
 	fprintf(stderr, "    RIGHT           increase max iteration by 256\n");
-	fprintf(stderr, "    Number+Return   change max iteration to i*256\n");
+	fprintf(stderr, "    Number          change max iteration to i*256\n");
 	fprintf(stderr, "    ESCAPE/q/Q      exit\n");
 	fprintf(stderr, "\n");
-	while ((c = getopt(argc, argv, "w:h:")) >= 0) {
+	while ((c = getopt(argc, argv, "w:h:i:")) >= 0) {
 		if (c == 'w') g_data.width  = (atoi(optarg) + 3) / 4 * 4;
 		else if (c == 'h') g_data.height = (atoi(optarg) + 3) / 4 * 4;
+		else if (c == 'i') {
+			FILE *fp;
+			double f[4];
+			if ((fp = fopen(optarg, "rb")) != NULL) {
+				fread(&g_data.max_iter, sizeof(int), 1, fp);
+				fread(f, sizeof(double), 4, fp);
+				g_data.xmin = f[0]; g_data.xmax = f[1]; g_data.ymin = f[2]; g_data.ymax = f[3];
+				fclose(fp);
+			}
+		}
 	}
 	g_data.buf = calloc(1, 3 * g_data.width * g_data.height);
 
