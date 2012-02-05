@@ -59,6 +59,7 @@ void glf_mbrot_simple(unsigned char *buf, int max_iter, int w, int h, double xmi
 		}
 	}
 }
+
 /**************************
  * GLUT related functions *
  **************************/
