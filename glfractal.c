@@ -24,7 +24,7 @@ typedef struct {
 } rgbcolor_t;
 
 /* Palette: blues.map from FractInt */
-const rgbcolor_t g_palette[256] = {
+static rgbcolor_t g_palette[256] = {
 	{  0,  0,  0},{  0,  0,  0},{  0,  0,  4},{  0,  0, 12},{  0,  0, 16},{  0,  0, 24},{  0,  0, 32},{  0,  0, 36},
 	{  0,  0, 44},{  0,  0, 48},{  0,  0, 56},{  0,  0, 64},{  0,  0, 68},{  0,  0, 76},{  0,  0, 80},{  0,  0, 88},
 	{  0,  0, 96},{  0,  0,100},{  0,  0,108},{  0,  0,116},{  0,  0,120},{  0,  0,128},{  0,  0,132},{  0,  0,140},
@@ -104,7 +104,7 @@ static void cb_key(unsigned char key, int x, int y)
 	} else if (isdigit(key)) {
 		if (key == '0') key = 10 + '0';
 		g_data.max_iter = (int)(key - '0') << 8;
-		fprintf(stderr, "Max iteration: %d\n", g_data.max_iter);
+		fprintf(stderr, "(MM) Max iteration: %d\n", g_data.max_iter);
 		cb_draw();
 	} else if (key == 's' || key == 'S') {
 		char fn[32];
@@ -116,7 +116,7 @@ static void cb_key(unsigned char key, int x, int y)
 			fwrite(&g_data.max_iter, sizeof(int), 1, fp);
 			fwrite(f, sizeof(double), 4, fp);
 			fclose(fp);
-			fprintf(stderr, "Save data to file '%s'.\n", fn);
+			fprintf(stderr, "(MM) Save data to file '%s'.\n", fn);
 		}
 	} else if (key == 'p' || key == 'P') {
 		char fn[32];
@@ -126,7 +126,7 @@ static void cb_key(unsigned char key, int x, int y)
 			fprintf(fp, "P6\n%d %d\n255\n", g_data.width, g_data.height);
 			fwrite(g_data.buf, 1, 3 * g_data.width * g_data.height, fp);
 			fclose(fp);
-			fprintf(stderr, "Save screenshot to file '%s'.\n", fn);
+			fprintf(stderr, "(MM) Save screenshot to file '%s'.\n", fn);
 		}
 	}
 }
@@ -136,11 +136,11 @@ static void cb_special(int key, int x, int y)
 	if (key == GLUT_KEY_RIGHT) {
 		g_data.max_iter += 256;
 		cb_draw();
-		fprintf(stderr, "Max iteration: %d\n", g_data.max_iter);
+		fprintf(stderr, "(MM) Max iteration: %d\n", g_data.max_iter);
 	} else if (key == GLUT_KEY_LEFT) {
 		if (g_data.max_iter >= 512) g_data.max_iter -= 256;
 		cb_draw();
-		fprintf(stderr, "Max iteration: %d\n", g_data.max_iter);
+		fprintf(stderr, "(MM) Max iteration: %d\n", g_data.max_iter);
 	}
 }
 
@@ -179,7 +179,7 @@ int main(int argc, char *argv[])
 	fprintf(stderr, "    -w INT          image width in pixel            [800]\n");
 	fprintf(stderr, "    -h INT          image height in pixel           [600]\n");
 	fprintf(stderr, "\n");
-	while ((c = getopt(argc, argv, "w:h:i:")) >= 0) {
+	while ((c = getopt(argc, argv, "w:h:i:m:")) >= 0) {
 		if (c == 'w') g_data.width  = (atoi(optarg) + 3) / 4 * 4;
 		else if (c == 'h') g_data.height = (atoi(optarg) + 3) / 4 * 4;
 		else if (c == 'i') {
@@ -190,7 +190,20 @@ int main(int argc, char *argv[])
 				fread(f, sizeof(double), 4, fp);
 				g_data.xmin = f[0]; g_data.xmax = f[1]; g_data.ymin = f[2]; g_data.ymax = f[3];
 				fclose(fp);
-			}
+			} else fprintf(stderr, "(WW) Fail to read data file '%s'. Continue anyway.\n", optarg);
+		} else if (c == 'm') {
+			FILE *fp;
+			int i, tmp[3];
+			if ((fp = fopen(optarg, "r")) != NULL) {
+				for (i = 0; i < 256; ++i) { /* FIXME: improve error checking */
+					if (fscanf(fp, "%d%d%d", &tmp[0], &tmp[1], &tmp[2]) != 3) {
+						fprintf(stderr, "(EE) Invalid palette at line %d\n", i + 1);
+						return 1;
+					}
+					g_palette[i].r = tmp[0]; g_palette[i].g = tmp[1]; g_palette[i].r = tmp[2];
+				}
+				fclose(fp);
+			} else fprintf(stderr, "(WW) Fail to read map file '%s'. Continue anyway.\n", optarg);
 		}
 	}
 	g_data.buf = malloc(3 * g_data.width * g_data.height);
