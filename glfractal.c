@@ -17,7 +17,7 @@ static struct {
 	int width, height, max_iter, ns, np;
 	double xmin, xmax, ymin, ymax;
 	unsigned char *buf;
-} g_data = { 800, 600, 256, 1, 1, -2, 1, -1.2, 1.2, NULL };
+} g_data = { 800, 600, 256, 1, 1, -2, 1.2, -1.2, 1.2, NULL };
 
 typedef struct {
 	unsigned char r, g, b;
@@ -164,7 +164,7 @@ static void cb_mouse(int bn, int state, int x, int y)
 int main(int argc, char *argv[])
 {
 	/* parse command-line options */
-	int c;
+	int c, is_full = 0;
 	fprintf(stderr, "\nKey bindings:\n\n");
 	fprintf(stderr, "    LeftClick       zoom in by 2X\n");
 	fprintf(stderr, "    RightClick      zoom out by 2X\n");
@@ -178,10 +178,11 @@ int main(int argc, char *argv[])
 	fprintf(stderr, "    -i FILE         data file dumped by 's' or 'S' [null]\n");
 	fprintf(stderr, "    -w INT          image width in pixel            [800]\n");
 	fprintf(stderr, "    -h INT          image height in pixel           [600]\n");
-	fprintf(stderr, "\n");
-	while ((c = getopt(argc, argv, "w:h:i:m:")) >= 0) {
+	fprintf(stderr, "    -f              full screen mode\n\n");
+	while ((c = getopt(argc, argv, "fw:h:i:m:")) >= 0) {
 		if (c == 'w') g_data.width  = (atoi(optarg) + 3) / 4 * 4;
 		else if (c == 'h') g_data.height = (atoi(optarg) + 3) / 4 * 4;
+		else if (c == 'f') is_full = 1;
 		else if (c == 'i') {
 			FILE *fp;
 			double f[4];
@@ -212,7 +213,12 @@ int main(int argc, char *argv[])
 	glutInit(&argc, argv);
 	glutInitDisplayMode(GLUT_RGB);
 	glutInitWindowSize(g_data.width, g_data.height);
-	glutCreateWindow("Mandelbrot Viewer");
+	if (is_full) {
+		char mode[64];
+		sprintf(mode, "%dx%d", g_data.width, g_data.height);
+		glutGameModeString(mode);
+		glutEnterGameMode();
+	} else glutCreateWindow("Mandelbrot Viewer");
 
 	glutDisplayFunc(cb_draw);
 	glutSpecialFunc(cb_special);
