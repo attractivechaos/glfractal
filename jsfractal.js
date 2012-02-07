@@ -76,6 +76,23 @@ function mb_draw_mbrot(canvasId)
 	var img = ctx.getImageData(0, 0, ctx.canvas.width, ctx.canvas.height)
 	var pix = img.data
 
+	var inp = document.URL
+	if (inp.indexOf('?') >= 0) {
+		var match = /[?&]d=([0-9a-fA-F]+)/.exec(inp)
+		if (match.length == 2 && match[1].length >= 72) {
+			var buf = new ArrayBuffer(4)
+			var b = new Uint8Array(buf)
+			var a = new Uint32Array(b)
+			for (var i = 0; i < 4; ++i) b[i] = parseInt(match[1].substr(i*2,2), 16)
+			max_iter = a[0]
+			buf = new ArrayBuffer(32)
+			b = new Uint8Array(buf)
+			a = new Float64Array(b)
+			for (var i = 0; i < 32; ++i) b[i] = parseInt(match[1].substr(i*2+8,2), 16)
+			xmin = a[0]; xmax = a[1]; ymin = a[2]; ymax = a[3]
+		}
+	}
+
 	function cal_mbrot(palette)
 	{
 		var w = ctx.canvas.width, h = ctx.canvas.height
@@ -131,6 +148,16 @@ function mb_draw_mbrot(canvasId)
 		} else if (ev.keyCode == 112 || ev.keyCode == 80) {
 			which_palette ^= 1
 			replot = 1
+		} else if (ev.keyCode == 100 || ev.keyCode == 68) {
+			var b, a = new Uint32Array(1), str = ''
+			a[0] = max_iter
+			b = new Uint8Array(a)
+			for (var i = 0; i < 4; ++i) str += b[i] < 16? '0'+b[i].toString(16) : b[i].toString(16)
+			a = new Float64Array(4)
+			a[0] = xmin; a[1] = xmax; a[2] = ymin; a[3] = ymax;
+			b = new Uint8Array(a)
+			for (var i = 0; i < 32; ++i) str += b[i] < 16? '0'+b[i].toString(16) : b[i].toString(16)
+			alert(str)
 		}
 		if (replot) {
 			cal_mbrot(palette[which_palette])
