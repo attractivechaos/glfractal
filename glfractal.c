@@ -12,6 +12,7 @@
 
 #include <unistd.h>
 #include <stdlib.h>
+#include <string.h>
 #include <stdio.h>
 #include <ctype.h>
 
@@ -83,17 +84,13 @@ static void cb_key(unsigned char key, int x, int y)
 		fprintf(stderr, "(MM) Max iteration: %d\n", g_data.max_iter);
 		cb_draw();
 	} else if (key == 'd' || key == 'D') {
-		char fn[32];
-		FILE *fp;
-		sprintf(fn, "data%.3d.dat", g_data.ns++); /* FIXME: possible memory violation */
-		if ((fp = fopen(fn, "wb")) != NULL) {
-			double f[4];
-			f[0] = g_data.xmin; f[1] = g_data.xmax; f[2] = g_data.ymin; f[3] = g_data.ymax;
-			fwrite(&g_data.max_iter, sizeof(int), 1, fp);
-			fwrite(f, sizeof(double), 4, fp);
-			fclose(fp);
-			fprintf(stderr, "(MM) Dump data to file '%s'.\n", fn);
-		}
+		unsigned i, x = g_data.max_iter;
+		unsigned char *p;
+		double f[4];
+		f[0] = g_data.xmin; f[1] = g_data.xmax; f[2] = g_data.ymin; f[3] = g_data.ymax;
+		for (i = 0, p = (unsigned char*)&x; i < 4; ++i) fprintf(stderr, "%.2x", p[i]);
+		for (i = 0, p = (unsigned char*)f; i < 32; ++i) fprintf(stderr, "%.2x", p[i]);
+		fprintf(stderr, "\n");
 	} else if (key == 's' || key == 'S') {
 		char fn[32];
 		FILE *fp;
@@ -153,24 +150,26 @@ int main(int argc, char *argv[])
 	fprintf(stderr, "    s or S          save screenshot to 'screenNNN.ppm'\n");
 	fprintf(stderr, "    ESC or q or Q   exit\n\n");
 	fprintf(stderr, "Command line options:\n\n");
-	fprintf(stderr, "    -i FILE         saved data file by 'd' or 'D' [null]\n");
-	fprintf(stderr, "    -m FILE         palette file                  [null]\n");
-	fprintf(stderr, "    -w INT          image width in pixel          [800]\n");
-	fprintf(stderr, "    -h INT          image height in pixel         [600]\n");
+	fprintf(stderr, "    -i STR          hex string dumped by 'd' or 'D' [null]\n");
+	fprintf(stderr, "    -m FILE         palette file                    [null]\n");
+	fprintf(stderr, "    -w INT          image width in pixel            [800]\n");
+	fprintf(stderr, "    -h INT          image height in pixel           [600]\n");
 	fprintf(stderr, "    -f              full screen mode\n\n");
 	while ((c = getopt(argc, argv, "fw:h:i:m:")) >= 0) {
 		if (c == 'w') g_data.width  = (atoi(optarg) + 3) / 4 * 4;
 		else if (c == 'h') g_data.height = (atoi(optarg) + 3) / 4 * 4;
 		else if (c == 'f') is_full = 1;
 		else if (c == 'i') {
-			FILE *fp;
+			unsigned i, x;
 			double f[4];
-			if ((fp = fopen(optarg, "rb")) != NULL) {
-				fread(&g_data.max_iter, sizeof(int), 1, fp);
-				fread(f, sizeof(double), 4, fp);
-				g_data.xmin = f[0]; g_data.xmax = f[1]; g_data.ymin = f[2]; g_data.ymax = f[3];
-				fclose(fp);
-			} else fprintf(stderr, "(WW) Fail to read data file '%s'. Continue anyway.\n", optarg);
+			unsigned char r[72], *p;
+			strncpy((char*)r, optarg, 72);
+			for (i = 0; i < 72; ++i)
+				r[i] -= (r[i] >= '0' && r[i] <= '9')? '0' : (r[i] >= 'a' && r[i] <= 'f'? 'a' : 'A') - 10;
+			for (i = 0, p = (unsigned char*)&x; i < 4; ++i) p[i] = r[i<<1]<<4 | r[i<<1|1];
+			g_data.max_iter = x;
+			for (i = 4, p = (unsigned char*)f; i < 36; ++i) p[i - 4] = r[i<<1]<<4 | r[i<<1|1];
+			g_data.xmin = f[0]; g_data.xmax = f[1]; g_data.ymin = f[2]; g_data.ymax = f[3];
 		} else if (c == 'm') {
 			FILE *fp;
 			int i, tmp[3];
