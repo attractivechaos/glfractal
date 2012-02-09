@@ -4,8 +4,8 @@
      http://nuclear.mutantstargoat.com/articles/sdr_fract/
 
    which is released to the public domain. I am re-releasing it under the MIT
-   license. Please do acknowledge John if you are using the source code from
-   this program. Thank you.
+   license. Please consider to acknowledge John if you are using the source
+   code from this program. Thank you.
  */
 
 #include <stdio.h>
@@ -16,26 +16,138 @@ typedef struct {
 	unsigned char r, g, b;
 } rgbcolor_t;
 
-static char *mbrot_src = "\n\
+static rgbcolor_t g_palette_blues[256], g_palette_neon[256];
+
+static struct {
+	int size[2], max_iter, pal_id, action, bn, pos[2];
+	double center[2], scale, zoom;
+	GLhandleARB prog;
+	rgbcolor_t *palette[3];
+} gd = { {800, 600}, 256, 0, 0, 1, {0, 0}, {-0.7, 0}, 2.4, 0.1, NULL, {g_palette_neon, g_palette_blues, NULL} };
+
+/*********************
+ * Mandelbrot shader *
+ *********************/
+
+static const char *mb_src = "\n\
 	uniform sampler1D tex;\n\
 	uniform vec2 center;\n\
-	uniform float scale;\n\
-	uniform int iter;\n\
+	uniform float ratio, scale;\n\
+	uniform int max_iter;\n\
 	void main() {\n\
 		vec2 z, c;\n\
-		c.x = 1.33333333 * (gl_TexCoord[0].x - 0.5) * scale - center.x;\n\
-		c.y = (gl_TexCoord[0].y - 0.5) * scale - center.y;\n\
+		c.x = ratio * (gl_TexCoord[0].x - 0.5) * scale + center.x;\n\
+		c.y = (gl_TexCoord[0].y - 0.5) * scale + center.y;\n\
 		int i;\n\
 		z = c;\n\
-		for(i=0; i<iter; i++) {\n\
+		for(i=0; i<max_iter; i++) {\n\
 			float x = (z.x * z.x - z.y * z.y) + c.x;\n\
 			float y = (z.y * z.x + z.x * z.y) + c.y;\n\
 			if((x * x + y * y) > 4.0) break;\n\
 			z.x = x;\n\
 			z.y = y;\n\
 		}\n\
-		gl_FragColor = texture1D(tex, (i == iter ? 0.0 : float(i)) / 100.0);\n\
+		gl_FragColor = texture1D(tex, (i == max_iter ? 0.0 : float(i)) / 100.0);\n\
 	}\n";
+
+/********************
+ * OpenGL callbacks *
+ ********************/
+
+static void cb_draw(void)
+{
+	glUniform2f(glGetUniformLocationARB(gd.prog, "center"), gd.center[0], gd.center[1]);
+	glUniform1f(glGetUniformLocationARB(gd.prog, "scale"), gd.scale);
+	glBegin(GL_QUADS);
+	glTexCoord2f(0, 0); glVertex2f(-1, -1);
+	glTexCoord2f(1, 0); glVertex2f(1, -1);
+	glTexCoord2f(1, 1); glVertex2f(1, 1);
+	glTexCoord2f(0, 1); glVertex2f(-1, 1);
+	glEnd();
+	glutSwapBuffers();
+}
+
+static void cb_mouse(int bn, int state, int x, int y)
+{
+	if (bn == GLUT_LEFT_BUTTON && state == GLUT_DOWN) {
+		gd.bn = bn;
+		gd.pos[0] = x;
+		gd.pos[1] = y;
+	}
+}
+
+static void cb_motion(int x, int y)
+{
+	if (gd.bn == GLUT_LEFT_BUTTON) {
+		gd.center[0] -= (double)(x - gd.pos[0]) / gd.size[0] * gd.scale;
+		gd.center[1] -= (double)(gd.pos[1] - y) / gd.size[1] * gd.scale;
+		gd.pos[0] = x; gd.pos[1] = y;
+	}
+}
+
+static void cb_keyboard(unsigned char key, int x, int y)
+{
+	if (key == 27 || key == 'q' || key == 'Q') {
+		exit(0);
+	} else if (key == '=' || key == '+' || key == '-') {
+		double px = ((double)x / gd.size[0] - .5) * gd.scale * ((double)gd.size[0] / gd.size[1]) + gd.center[0];
+		double py = (.5 - (double)y / gd.size[1]) * gd.scale + gd.center[1];
+		if (key == '-') {
+			gd.center[0] -= (px - gd.center[0]) * gd.zoom;
+			gd.center[1] -= (py - gd.center[1]) * gd.zoom;
+			gd.scale *= 1 + gd.zoom;
+		} else {
+			gd.center[0] += (px - gd.center[0]) * gd.zoom;
+			gd.center[1] += (py - gd.center[1]) * gd.zoom;
+			gd.scale *= 1 - gd.zoom;
+		}
+	}
+}
+
+/*****************
+ * Main function *
+ *****************/
+
+int main(int argc, char **argv)
+{
+	GLhandleARB sdr;
+
+	glutInit(&argc, argv);
+	glutInitDisplayMode(GLUT_RGB | GLUT_DOUBLE);
+	glutInitWindowSize(gd.size[0], gd.size[1]);
+	glutCreateWindow("GLSL Mandelbrot");
+
+	glutDisplayFunc(cb_draw);
+	glutIdleFunc(glutPostRedisplay);
+	glutKeyboardFunc(cb_keyboard);
+	glutMouseFunc(cb_mouse);
+	glutMotionFunc(cb_motion);
+
+	glBindTexture(GL_TEXTURE_1D, 1);
+	glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexImage1D(GL_TEXTURE_1D, 0, 3, 256, 0, GL_RGB, GL_UNSIGNED_BYTE, gd.palette[gd.pal_id]);
+	glEnable(GL_TEXTURE_1D);
+
+	sdr = glCreateShaderObjectARB(GL_FRAGMENT_SHADER_ARB);
+	glShaderSourceARB(sdr, 1, &mb_src, 0);
+	glCompileShaderARB(sdr);
+	gd.prog = glCreateProgramObjectARB();
+	glAttachObjectARB(gd.prog, sdr);
+	glLinkProgramARB(gd.prog);
+	glUseProgramObjectARB(gd.prog);
+
+	glUniform1i(glGetUniformLocationARB(gd.prog, "max_iter"), gd.max_iter);
+	glUniform1f(glGetUniformLocationARB(gd.prog, "ratio"), (double)gd.size[0] / gd.size[1]);
+
+	glutMainLoop();
+	return 0;
+}
+
+/****************
+ * Data section *
+ ****************/
 
 static rgbcolor_t g_palette_neon[256] = {
 	{  0,  0,  0},{  0,  0,  0},{  8,  0,  0},{ 16,  4,  4},{ 24,  4,  8},{ 32,  8, 12},{ 40, 12, 16},{ 48, 12, 20},
@@ -107,156 +219,3 @@ static rgbcolor_t g_palette_blues[256] = {
 	{  0,  0, 28},{  0,  0, 24},{  0,  0, 20},{  0,  0, 16},{  0,  0, 12},{  0,  0,  8},{  0,  0,  0},{  0,  0,  0}
 };
 
-GLhandleARB setup_shader(const char *src)
-{
-	GLhandleARB sdr, prog;
-	sdr = glCreateShaderObjectARB(GL_FRAGMENT_SHADER_ARB);
-	glShaderSourceARB(sdr, 1, &src, 0);
-	glCompileShaderARB(sdr);
-	prog = glCreateProgramObjectARB();
-	glAttachObjectARB(prog, sdr);
-	glLinkProgramARB(prog);
-	glUseProgramObjectARB(prog);
-	return prog;
-}
-
-void set_uniform1f(GLhandleARB prog, const char *name, float val) {
-	int loc = glGetUniformLocationARB(prog, name);
-	if(loc != -1) {
-		glUniform1f(loc, val);
-	}
-}
-
-void set_uniform2f(GLhandleARB prog, const char *name, float v1, float v2) {
-	int loc = glGetUniformLocationARB(prog, name);
-	if(loc != -1) {
-		glUniform2f(loc, v1, v2);
-	}
-}
-
-void set_uniform1i(GLhandleARB prog, const char *name, int val) {
-	int loc = glGetUniformLocationARB(prog, name);
-	if(loc != -1) {
-		glUniform1i(loc, val);
-	}
-}
-
-void draw(void);
-void key_handler(unsigned char key, int x, int y);
-void bn_handler(int bn, int state, int x, int y);
-void mouse_handler(int x, int y);
-
-GLhandleARB prog;
-float cx = 0.7, cy = 0.0;
-float scale = 2.2;
-int iter = 70;
-const float zoom_factor = 0.025;
-
-int main(int argc, char **argv)
-{
-	/* initialize glut */
-	glutInitWindowSize(800, 600);
-	
-	glutInit(&argc, argv);
-	glutInitDisplayMode(GLUT_RGB | GLUT_DOUBLE);
-	glutCreateWindow("Mindlapse :: GLSL Mandelbrot");
-
-	glutDisplayFunc(draw);
-	glutIdleFunc(glutPostRedisplay);
-	glutKeyboardFunc(key_handler);
-	glutMouseFunc(bn_handler);
-	glutMotionFunc(mouse_handler);
-
-	/* load the 1D palette texture */
-	glBindTexture(GL_TEXTURE_1D, 1);
-	glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_1D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-	
-	glTexImage1D(GL_TEXTURE_1D, 0, 3, 256, 0, GL_RGB, GL_UNSIGNED_BYTE, g_palette_blues);
-
-	glEnable(GL_TEXTURE_1D);
-
-	/* load and set the mandelbrot shader */
-	prog = setup_shader(mbrot_src);
-	set_uniform1i(prog, "iter", iter);
-
-	glutMainLoop();
-	return 0;
-}
-
-void draw(void) {
-	set_uniform2f(prog, "center", cx, cy);
-	set_uniform1f(prog, "scale", scale);
-
-	glBegin(GL_QUADS);
-	glTexCoord2f(0, 0);
-	glVertex2f(-1, -1);
-	glTexCoord2f(1, 0);
-	glVertex2f(1, -1);
-	glTexCoord2f(1, 1);
-	glVertex2f(1, 1);
-	glTexCoord2f(0, 1);
-	glVertex2f(-1, 1);
-	glEnd();
-
-	glutSwapBuffers();
-}
-
-void key_handler(unsigned char key, int x, int y) {
-	switch(key) {
-	case 27:
-	case 'q':
-	case 'Q':
-		exit(0);
-
-	case '=':
-		if(1) {
-			iter += 10;
-		} else {
-	case '-':
-			iter -= 10;
-			if(iter < 0) iter = 0;
-		}
-		printf("iterations: %d\n", iter);
-		set_uniform1i(prog, "iter", iter);
-		break;
-
-	default:
-		break;
-	}
-}
-
-int which_bn;
-float px, py;
-
-void bn_handler(int bn, int state, int x, int y) {
-	int xres = glutGet(GLUT_WINDOW_WIDTH);
-	int yres = glutGet(GLUT_WINDOW_HEIGHT);
-	px = 2.0 * ((float)x / (float)xres - 0.5);
-	py = 2.0 * ((float)y / (float)yres - 0.5);
-	which_bn = bn;
-
-	if(which_bn == 3) {
-		scale *= 1 - zoom_factor * 2.0;
-	} else if(which_bn == 4) {
-		scale *= 1 + zoom_factor * 2.0;;
-	}
-}
-
-void mouse_handler(int x, int y) {
-	int xres = glutGet(GLUT_WINDOW_WIDTH);
-	int yres = glutGet(GLUT_WINDOW_HEIGHT);
-	float fx = 2.0 * ((float)x / (float)xres - 0.5);
-	float fy = 2.0 * ((float)y / (float)yres - 0.5);
-
-	if(which_bn == 1) {
-		cx += (fx - px) * scale / 2.0;
-		cy -= (fy - py) * scale / 2.0;
-	} else if(which_bn == 0) {
-		scale *= (fy - py < 0.0) ? 1 - zoom_factor : 1 + zoom_factor;
-	}
-
-	px = fx;
-	py = fy;
-}
