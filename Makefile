@@ -1,7 +1,7 @@
 CC=			gcc
 CFLAGS=		-g -Wall -O2
 DFLAGS=
-PROG=		glfractal glslfractal
+PROG=		glfractal glslfractal glslfractale
 LIBS=		-framework GLUT -framework OpenGL  # for Mac OS X
 
 .SUFFIXES:.c .o
@@ -15,6 +15,9 @@ glfractal:glfractal.c
 		gcc -Wall -O2 $< -o $@ $(LIBS)
 
 glslfractal:glslfractal.c
+		gcc -Wall -O2 $< -o $@ $(LIBS)
+
+glslfractale:glslfractale.c
 		gcc -Wall -O2 $< -o $@ $(LIBS)
 
 clean:

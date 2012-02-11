@@ -6,6 +6,10 @@
    which is released to the public domain. I am re-releasing it under the MIT
    license. Please consider to acknowledge John if you are using the source
    code from this program. Thank you.
+
+   The precision emulation code is from this blog post:
+
+     http://www.thasler.org/blog/?p=93
  */
 
 #include <stdio.h>
@@ -23,7 +27,7 @@ static struct {
 	double center[2], scale, zoom;
 	GLhandleARB prog;
 	rgbcolor_t *palette;
-} gd = { {800, 600}, 256, 0, 1, {0, 0}, {-0.7, 0}, 2.4, 0.03, NULL, g_palette_neon };
+} gd = { {800, 600}, 256, 0, 1, {0, 0}, {-0.7, 0}, 2.4, 0.1, NULL, g_palette_neon };
 
 /*********************
  * Mandelbrot shader *
@@ -31,18 +35,61 @@ static struct {
 
 static const char *mb_src = "\n\
 	uniform sampler1D tex;\n\
-	uniform vec2 center;\n\
+	uniform vec2 centerx, centery;\n\
 	uniform float ratio, scale;\n\
 	uniform int max_iter;\n\
-	void main() {\n\
+	vec2 ds_add(vec2 a, vec2 b) {\n\
+		vec2 c;\n\
+		float t1, t2, e;\n\
+		t1 = a.x + b.x;\n\
+		e = t1 - a.x;\n\
+		t2 = ((b.x - e) + (a.x - (t1 - e))) + a.y + b.y;\n\
+		c.x = t1 + t2;\n\
+		c.y = t2 - (c.x - t1);\n\
+		return c;\n\
+	}\n\
+	vec2 ds_sub(vec2 a, vec2 b) {\n\
+		vec2 c;\n\
+		float e, t1, t2;\n\
+		t1 = a.x - b.x;\n\
+		e = t1 - a.x;\n\
+		t2 = ((-b.x - e) + (a.x - (t1 - e))) + a.y - b.y;\n\
+		c.x = t1 + t2;\n\
+		c.y = t2 - (c.x - t1);\n\
+		return c;\n\
+	}\n\
+	vec2 ds_mul(vec2 a, vec2 b) {\n\
+		vec2 c;\n\
+		float c11, c21, c2, e, t1, t2;\n\
+		float a1, a2, b1, b2, cona, conb, split = 8193.;\n\
+		cona = a.x * split;\n\
+		conb = b.x * split;\n\
+		a1 = cona - (cona - a.x);\n\
+		b1 = conb - (conb - b.x);\n\
+		a2 = a.x - a1;\n\
+		b2 = b.x - b1;\n\
+		c11 = a.x * b.x;\n\
+		c21 = a2 * b2 + (a2 * b1 + (a1 * b2 + (a1 * b1 - c11)));\n\
+		c2 = a.x * b.y + a.y * b.x;\n\
+		t1 = c11 + c2;\n\
+		e = t1 - c11;\n\
+		t2 = a.y * b.y + ((c2 - e) + (c11 - (t1 - e))) + c21;\n\
+		c.x = t1 + t2;\n\
+		c.y = t2 - (c.x - t1);\n\
+		return c;\n\
+	}\n\
+	void main(void) {\n\
 		int i;\n\
-		vec2 z, c;\n\
-		c = vec2(ratio * (gl_TexCoord[0].x - 0.5), gl_TexCoord[0].y - 0.5) * scale + center;\n\
-		for (i = 0, z = c; i < max_iter; ++i) {\n\
-			float tmp = z.x * z.y;\n\
-			vec2 a = vec2(z.x * z.x - z.y * z.y, tmp + tmp) + c;\n\
-			if (dot(a, a) > 4.0) break;\n\
-			z = a;\n\
+		vec2 zx, zy, cx, cy;\n\
+		cx = vec2(ratio * (gl_TexCoord[0].x - 0.5) * scale, 0) + centerx;\n\
+		cy = vec2((gl_TexCoord[0].y - 0.5) * scale, 0) + centery;\n\
+		for (i = 0, zx = cx, zy = cy; i < max_iter; ++i) {\n\
+			vec2 tmp = ds_mul(zx, zy);\n\
+			vec2 ax = ds_add(ds_sub(ds_mul(zx, zx), ds_mul(zy, zy)), cx);\n\
+			vec2 ay = ds_add(ds_add(tmp, tmp), cy);\n\
+			tmp = ds_add(ds_mul(ax, ax), ds_mul(ay, ay));\n\
+			if (tmp.x > 4.0) break;\n\
+			zx = ax; zy = ay;\n\
 		}\n\
 		gl_FragColor = texture1D(tex, float(i&0xff) / 256.0);\n\
 	}\n";
@@ -53,7 +100,8 @@ static const char *mb_src = "\n\
 
 static void cb_draw(void)
 {
-	glUniform2f(glGetUniformLocationARB(gd.prog, "center"), gd.center[0], gd.center[1]);
+	glUniform2f(glGetUniformLocationARB(gd.prog, "centerx"), gd.center[0], gd.center[0] - (float)gd.center[0]);
+	glUniform2f(glGetUniformLocationARB(gd.prog, "centery"), gd.center[1], gd.center[1] - (float)gd.center[1]);
 	glUniform1f(glGetUniformLocationARB(gd.prog, "scale"), gd.scale);
 	glBegin(GL_QUADS);
 	glTexCoord2f(0, 0); glVertex2f(-1, -1);
