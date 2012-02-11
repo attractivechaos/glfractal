@@ -78,16 +78,16 @@ function mb_draw_mbrot(canvasId)
 
 	var inp = document.URL
 	if (inp.indexOf('?') >= 0) {
-		var match = /[?&]d=([0-9a-fA-F]+)/.exec(inp)
+		var match = /\?([0-9a-fA-F]+)/.exec(inp)
 		if (match.length == 2 && match[1].length >= 72) {
 			var buf = new ArrayBuffer(4)
 			var b = new Uint8Array(buf)
-			var a = new Uint32Array(b)
+			var a = new Uint32Array(buf)
 			for (var i = 0; i < 4; ++i) b[i] = parseInt(match[1].substr(i*2,2), 16)
 			max_iter = a[0]
 			buf = new ArrayBuffer(32)
 			b = new Uint8Array(buf)
-			a = new Float64Array(b)
+			a = new Float64Array(buf)
 			for (var i = 0; i < 32; ++i) b[i] = parseInt(match[1].substr(i*2+8,2), 16)
 			xmin = a[0]; xmax = a[1]; ymin = a[2]; ymax = a[3]
 		}
@@ -149,13 +149,16 @@ function mb_draw_mbrot(canvasId)
 			which_palette ^= 1
 			replot = 1
 		} else if (ev.keyCode == 100 || ev.keyCode == 68) {
-			var b, a = new Uint32Array(1), str = ''
+			var buf, a, b, str = ''
+			buf = new ArrayBuffer(4)
+			a = new Uint32Array(buf)
+			b = new Uint8Array(buf)
 			a[0] = max_iter
-			b = new Uint8Array(a)
 			for (var i = 0; i < 4; ++i) str += b[i] < 16? '0'+b[i].toString(16) : b[i].toString(16)
-			a = new Float64Array(4)
+			buf = new ArrayBuffer(32)
+			a = new Float64Array(buf)
+			b = new Uint8Array(buf)
 			a[0] = xmin; a[1] = xmax; a[2] = ymin; a[3] = ymax;
-			b = new Uint8Array(a)
 			for (var i = 0; i < 32; ++i) str += b[i] < 16? '0'+b[i].toString(16) : b[i].toString(16)
 			alert(str)
 		}
