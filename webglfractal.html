@@ -1,0 +1,34 @@
+<html>
+<head>
+<title>JS Mandelbrot</title>
+<script language="JavaScript" src="webglfractal.js"></script>
+<style type="text/css"><!--
+    body, td, p { font: 12px "Lucida Grande", "Lucida Sans Unicode", Arial, sans-serif; }
+	a, a:visited { color: blue; }
+	a:hover { color: red; }
+--></style>
+</head>
+<body onLoad="glmbrot('mbrot-gl', 'mb-shader')">
+<script id="mb-shader" type="x-shader/x-fragment">
+uniform sampler2D tex;
+uniform vec2 center;
+uniform float ratio, scale;
+uniform int max_iter;
+void main() {
+	int i;
+	vec2 z, c;
+	c = vec2(ratio * (gl_TexCoord[0].x - 0.5), gl_TexCoord[0].y - 0.5) * scale + center;
+	for (i = 0, z = c; i < max_iter; ++i) {
+		float tmp = z.x * z.y;
+		vec2 a = vec2(z.x * z.x - z.y * z.y, tmp + tmp) + c;
+		if (dot(a, a) > 4.0) break;
+		z = a;
+	}
+	gl_FragColor = vec4(0.5, 0.0, 0.0, 1.0)
+}
+</script>
+<!--	gl_FragColor = texture2D(tex, vec2(float(i&0xff) / 256.0, 0.0)); -->
+<canvas id="mbrot-gl" width="800" height="600" style="border:1px solid"></canvas><br>
+</body>
+</html>
+
