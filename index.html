@@ -2,16 +2,37 @@
 <head>
 <title>JS Mandelbrot</title>
 <script language="JavaScript" src="jsfractal.js"></script>
+<script language="Javascript">
+function mbrot_init()
+{
+	var dumps = [
+		'00050000763f354ea1fff2bf560c021b9efff2bf210681152177d33fc19f1aaf2a77d33f',
+		'0009000042b6f3cfe7f6d2bfda4f8dc9e7f6d2bfd4a3709bf00aeb3f3a0ad79df00aeb3f',
+		'00090000a1633bd98b6a79bfd3966ecc8b6a79bf8741f823bfd0e93fb9740b24bfd0e93f',
+		'00030000c30b3c12630bfabf83a5d511630bfabf4d13124852e88c3f4d6b786e52e88c3f'
+	];
+	var s = 'A coordinate dump can be revisited with <tt>http://url?dump</tt>. For examples:<ul>';
+	var url = window.location.href.replace(/\?.*/, "");
+	for (var i = 0; i < dumps.length; ++i) {
+		var u = url + "?" + dumps[i];
+		s += '<li><a href="' + u + '">' + u + '</a>';
+	}
+	s += '</ul>';
+	document.getElementById("examples").innerHTML= s;
+	mb_draw_mbrot('mbrot');
+}
+</script>
 <style type="text/css"><!--
     body, td, p { font: 12px "Lucida Grande", "Lucida Sans Unicode", Arial, sans-serif; }
 	a, a:visited { color: blue; }
 	a:hover { color: red; }
 --></style>
 </head>
-<body onLoad="mb_draw_mbrot('mbrot')">
+<body onLoad="mbrot_init();">
 <canvas id="mbrot" width="800" height="600" style="border:1px solid"></canvas><br>
 <u><b>Click</b></u>=zoom in; <u><b>Shift</b></u>+<u><b>Click</b></u>=zoom out; <u><b>d</b></u>=dump coordinates; <u><b>p</b></u>=change palette; <u><b>0</b></u>-<u><b>9</b></u>=change max iterations;
 &nbsp;&nbsp;&nbsp;<span id="message" style="color: gray;"></span></p>
+<p><span id="examples"></span></p>
 </body>
 </html>
 
